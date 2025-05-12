@@ -37,14 +37,37 @@ def send_otp_view(request):
 def verify_otp_view(request):
     session_id = request.data.get("session_id")
     otp = request.data.get("otp")
+    phone = request.data.get("phone")
+    name = request.data.get("name")  # optional
+    email = request.data.get("email")  # optional
 
-    if not session_id or not otp:
-        return Response({"detail": "Session ID and OTP are required."}, status=400)
+    if not session_id or not otp or not phone:
+        return Response({"detail": "Phone, Session ID and OTP are required."}, status=400)
 
+    # ✅ OTP verification
     url = f"https://2factor.in/API/V1/{API_KEY}/SMS/VERIFY/{session_id}/{otp}"
     response = requests.get(url)
     data = response.json()
 
-    if data.get("Status") == "Success":
-        return Response({"detail": "OTP Verified"}, status=200)
-    return Response({"detail": "Invalid OTP"}, status=400)
+    if data.get("Status") != "Success":
+        return Response({"detail": "Invalid OTP"}, status=400)
+
+    # ✅ Get or create customer
+    customer, created = Customer.objects.get_or_create(phone=phone)
+
+    # ✅ If new user, or if you want to update info:
+    if created or not customer.name or not customer.email:
+        if name:
+            customer.name = name
+        if email:
+            customer.email = email
+        customer.save()
+
+    return Response({
+        "detail": "OTP Verified",
+        "customer_id": customer.id,
+        "phone": customer.phone,
+        "name": customer.name,
+        "email": customer.email,
+        "new_user": created
+    }, status=200)
