@@ -57,13 +57,31 @@ def verify_otp_view(request):
     # ✅ Get or create customer
     customer, created = Customer.objects.get_or_create(phone=phone)
 
-    # ✅ If new user, or if you want to update info:
-    if created or not customer.name or not customer.email:
-        if name:
-            customer.name = name
-        if email:
-            customer.email = email
-        customer.save()
+    # ✅ Update name/email if provided
+    if name:
+        customer.name = name
+    if email:
+        customer.email = email
+    customer.save()
+
+    # ✅ Assign Free Trial if new
+# ✅ Assign Free Trial if new
+    if created:
+        try:
+            free_plan = Plan.objects.get(
+                name__iexact="Free Trial",
+                price=0,
+                duration_days=7
+            )
+            Subscription.objects.create(
+                customer=customer,
+                plan=free_plan,
+                start_date=date.today(),
+                end_date=date.today() + timedelta(days=free_plan.duration_days),
+                is_active=True
+            )
+        except Plan.DoesNotExist:
+            return Response({"detail": "Valid Free Trial plan not found"}, status=500)
 
     return Response({
         "detail": "OTP Verified",
@@ -73,7 +91,6 @@ def verify_otp_view(request):
         "email": customer.email,
         "new_user": created
     }, status=200)
-
 
 
 @api_view(['GET'])
