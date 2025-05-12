@@ -5,6 +5,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 import requests
+from subscription.models import Subscription
+from datetime import date
 API_KEY = "863e3f5d-dc99-11ef-8b17-0200cd936042"  
 
 class EmployerViewSet(viewsets.ModelViewSet):
@@ -71,3 +73,46 @@ def verify_otp_view(request):
         "email": customer.email,
         "new_user": created
     }, status=200)
+
+
+
+@api_view(['GET'])
+def get_user_info_view(request):
+    phone = request.query_params.get("phone")  # or use customer_id
+
+    if not phone:
+        return Response({"detail": "Phone number is required."}, status=400)
+
+    try:
+        customer = Customer.objects.get(phone=phone)
+    except Customer.DoesNotExist:
+        return Response({"detail": "Customer not found."}, status=404)
+
+    # Get latest subscription
+    subscription = customer.subscriptions.order_by('-end_date').first()
+
+    subscription_data = None
+    if subscription:
+        # Update status if expired
+        if subscription.end_date < date.today():
+            subscription.is_active = False
+            subscription.save()
+
+        subscription_data = {
+            "plan_name": subscription.plan.name,
+            "description": subscription.plan.description,
+            "start_date": subscription.start_date,
+            "end_date": subscription.end_date,
+            "is_active": subscription.is_active,
+            "price": float(subscription.plan.price),
+            "discount": float(subscription.plan.discount),
+            "final_price": float(subscription.plan.discounted_price),
+        }
+
+    return Response({
+        "customer_id": customer.id,
+        "name": customer.name,
+        "phone": customer.phone,
+        "email": customer.email,
+        "subscription": subscription_data
+    })

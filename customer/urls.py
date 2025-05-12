@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import EmployerViewSet, CustomerViewSet, send_otp_view, verify_otp_view
+from .views import EmployerViewSet, CustomerViewSet, send_otp_view, verify_otp_view ,get_user_info_view
 
 router = DefaultRouter()
 router.register(r'employers', EmployerViewSet)
@@ -10,4 +10,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('send-otp/', send_otp_view, name='send-otp'),
     path('verify-otp/', verify_otp_view, name='verify-otp'),
+     path('user-info/', get_user_info_view),
 ]
