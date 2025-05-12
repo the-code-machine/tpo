@@ -17,16 +17,9 @@ class CustomerSerializer(serializers.ModelSerializer):
         model = Customer
         fields = ['id', 'name', 'phone', 'email', 'otp']  # ✅ explicitly list model fields + otp
 
-
     def validate_phone(self, value):
         if not value.isdigit() or len(value) != 10:
             raise serializers.ValidationError("Enter a valid 10-digit mobile number.")
-        return value
-
-    def validate_otp(self, value):
-        # TODO: integrate actual OTP verification here
-        if value != "123456":  # simulate success
-            raise serializers.ValidationError("Invalid OTP.")
         return value
 
     def create(self, validated_data):

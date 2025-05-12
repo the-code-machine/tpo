@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Test Payment Flow</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body class="bg-gray-100 p-10">
+  <h1 class="text-3xl font-bold text-center text-blue-700 mb-8">Select a Plan</h1>
+
+  <div id="plans" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+    <!-- Plans will load here -->
+  </div>
+
+  <script>
+    let currentUser = null;
+
+    async function loadUser() {
+      const res = await fetch('http://127.0.0.1:8000/api/customers');
+      const users = await res.json();
+      currentUser = users[0]; // assuming only one user
+      if (!currentUser) throw new Error("No user found");
+    }
+
+    async function loadPlans() {
+      const res = await fetch('http://127.0.0.1:8000/api/subscription/plans');
+      const plans = await res.json();
+
+      const container = document.getElementById('plans');
+      container.innerHTML = '';
+
+      plans.forEach(plan => {
+        const card = document.createElement('div');
+        card.className = 'bg-white p-6 rounded-lg shadow border hover:bg-blue-50 transition';
+        card.innerHTML = `
+          <h2 class="text-xl font-semibold text-gray-800 mb-2">${plan.name}</h2>
+          <p class="text-gray-600 mb-1">₹${plan.price} for ${plan.duration_days} days</p>
+          <p class="text-sm text-gray-500 mb-4">${plan.description || ''}</p>
+          <button data-plan-id="${plan.id}" class="subscribe-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+            Subscribe
+          </button>
+        `;
+        container.appendChild(card);
+      });
+
+      document.querySelectorAll('.subscribe-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const planId = btn.getAttribute('data-plan-id');
+          handleSubscribe(planId);
+        });
+      });
+    }
+
+    async function handleSubscribe(planId) {
+      if (!currentUser) return alert("User not loaded");
+
+      try {
+        const res = await fetch('http://127.0.0.1:8000/api/subscription/create-order/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            plan_id: planId,
+            user_id: currentUser.id
+          })
+        });
+
+        const data = await res.json();
+
+        if (!data.order_id) {
+          alert('Failed to create Razorpay order');
+          return;
+        }
+
+        const options = {
+          key: data.razorpay_key,
+          amount: data.amount,
+          currency: data.currency,
+          name: "Paper Bill",
+          description: `Payment for ${data.plan.name}`,
+          order_id: data.order_id,
+          handler: function (response) {
+            fetch('http://127.0.0.1:8000/api/subscription/verify-payment/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_signature: response.razorpay_signature,
+                plan_id: planId,
+                user:currentUser
+              })
+            })
+            .then(res => res.json())
+            .then(result => alert(result.status || 'Subscribed!'))
+            .catch(() => alert('Verification failed'));
+          },
+          prefill: {
+            name: currentUser.name || "User",
+            email: currentUser.email || "email@example.com"
+          },
+          theme: {
+            color: "#3b82f6"
+          }
+        };
+
+        const rzp = new Razorpay(options);
+        rzp.open();
+
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    }
+
+    // Run on page load
+    (async () => {
+      try {
+        await loadUser();
+        await loadPlans();
+      } catch (err) {
+        alert("Setup failed: " + err.message);
+      }
+    })();
+  </script>
+</body>
+</html>
