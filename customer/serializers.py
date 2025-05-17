@@ -1,21 +1,18 @@
 # customer/serializers.py
 
 from rest_framework import serializers
-from .models import Employer, Customer
+from .models import  Customer
 from subscription.models import Subscription, Plan
 from datetime import date, timedelta
 
-class EmployerSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Employer
-        fields = '__all__'
+
 
 class CustomerSerializer(serializers.ModelSerializer):
     otp = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = Customer
-        fields = ['id', 'name', 'phone', 'email', 'otp']  # ✅ explicitly list model fields + otp
+        fields = ['id', 'name', 'phone', 'email', 'otp',]  # ✅ explicitly list model fields + otp
 
     def validate_phone(self, value):
         if not value.isdigit() or len(value) != 10:
@@ -42,3 +39,9 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
 
         return customer
+
+
+class CustomerSyncToggleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = ['sync_enabled']

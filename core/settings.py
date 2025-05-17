@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'jazzmin',
     'customer',
+    'sync',
     'subscription', 
     'django.contrib.admin',
     'django.contrib.auth',

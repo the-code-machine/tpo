@@ -1,17 +1,15 @@
 from rest_framework import viewsets
-from .models import Employer, Customer
-from .serializers import EmployerSerializer, CustomerSerializer
+from .models import  Customer
+from .serializers import CustomerSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 import requests
 from subscription.models import Subscription
 from datetime import date
+from .serializers import CustomerSyncToggleSerializer
 API_KEY = "863e3f5d-dc99-11ef-8b17-0200cd936042"  
 
-class EmployerViewSet(viewsets.ModelViewSet):
-    queryset = Employer.objects.all()
-    serializer_class = EmployerSerializer
 
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
@@ -65,7 +63,7 @@ def verify_otp_view(request):
     customer.save()
 
     # ✅ Assign Free Trial if new
-# ✅ Assign Free Trial if new
+    # ✅ Assign Free Trial if new
     if created:
         try:
             free_plan = Plan.objects.get(
@@ -133,3 +131,20 @@ def get_user_info_view(request):
         "email": customer.email,
         "subscription": subscription_data
     })
+
+@api_view(["POST"])
+def toggle_customer_sync(request):
+    phone = request.data.get("phone")
+    if not phone:
+        return Response({"error": "Phone number is required."}, status=400)
+
+    customer = Customer.objects.filter(phone=phone).first()
+    if not customer:
+        return Response({"error": "Customer not found."}, status=404)
+
+    serializer = CustomerSyncToggleSerializer(customer, data=request.data, partial=True)
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"status": "success", "sync_enabled": serializer.data["sync_enabled"]})
+    else:
+        return Response(serializer.errors, status=400)
