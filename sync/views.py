@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from django.apps import apps
+from django.forms.models import model_to_dict
 from django.db import transaction
 from .models import (
     Firm, Category, Unit, UnitConversion, Item, Group, Party, PartyAdditionalField,
@@ -43,6 +43,9 @@ def sync_data(request):
         return Response({"error": f"Invalid table name: {table}"}, status=400)
 
     created, updated = 0, 0
+    failed_records = []
+
+    model_fields = {field.name for field in model._meta.fields}
 
     with transaction.atomic():
         for record in records:
@@ -50,20 +53,26 @@ def sync_data(request):
             if not obj_id:
                 continue
 
-            obj, is_new = model.objects.update_or_create(
-                id=obj_id,
-                defaults=record
-            )
-            if is_new:
-                created += 1
-            else:
-                updated += 1
+            # Strip 'firmId' from defaults if the model does not have it
+            defaults = {
+                k: v for k, v in record.items()
+                if k in model_fields
+            }
+
+            try:
+                _, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
+                created += int(is_new)
+                updated += int(not is_new)
+            except Exception as e:
+                failed_records.append({"id": obj_id, "error": str(e), "table": table})
 
     return Response({
-        "status": "success",
+        "status": "success" if not failed_records else "partial",
         "table": table,
         "created": created,
-        "updated": updated
+        "updated": updated,
+        "failed": len(failed_records),
+        "errors": failed_records
     }, status=200)
 
 
@@ -71,7 +80,7 @@ def sync_data(request):
 def fetch_data(request):
     table = request.query_params.get("table")
     firm_id = request.query_params.get("firmId")
-    updated_after = request.query_params.get("updatedAfter")  # optional ISO datetime
+    updated_after = request.query_params.get("updatedAfter")
 
     if not table:
         return Response({"error": "'table' parameter is required"}, status=400)
@@ -81,17 +90,17 @@ def fetch_data(request):
         return Response({"error": f"Invalid table name: {table}"}, status=400)
 
     queryset = model.objects.all()
+    model_fields = {field.name for field in model._meta.fields}
 
-    if firm_id and hasattr(model, 'firmId'):
+    if firm_id and 'firmId' in model_fields:
         queryset = queryset.filter(firmId=firm_id)
 
-    if updated_after and hasattr(model, 'updatedAt'):
+    if updated_after and 'updatedAt' in model_fields:
         try:
             queryset = queryset.filter(updatedAt__gt=updated_after)
         except Exception:
             return Response({"error": "Invalid 'updatedAfter' format"}, status=400)
 
-    # Return list of dicts (not JSON string) for JS parsing
     records = [model_to_dict(obj) for obj in queryset]
 
     return Response({
