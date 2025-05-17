@@ -129,6 +129,7 @@ def get_user_info_view(request):
         "name": customer.name,
         "phone": customer.phone,
         "email": customer.email,
+        "sync_enabled":customer.sync_enabled,
         "subscription": subscription_data
     })
 
