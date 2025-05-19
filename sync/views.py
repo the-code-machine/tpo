@@ -9,7 +9,7 @@ from .models import (
     StockMovement, BankAccount, BankTransaction, Payment
 )
 
-# Table name to model mapping
+# Mapping table name to model class
 MODEL_MAP = {
     "firms": Firm,
     "categories": Category,
@@ -30,30 +30,31 @@ MODEL_MAP = {
     "payments": Payment,
 }
 
+
 @api_view(['POST'])
 def sync_data(request):
     table = request.data.get("table")
     records = request.data.get("records")
 
     if not table or not records:
-        return Response({"error": "Both 'table' and 'records' are required."}, status=400)
+        return Response({"error": "Both 'table' and 'records' are required."}, status=status.HTTP_400_BAD_REQUEST)
 
     model = MODEL_MAP.get(table)
     if not model:
-        return Response({"error": f"Invalid table name: {table}"}, status=400)
-
-    created, updated = 0, 0
-    failed_records = []
+        return Response({"error": f"Invalid table name: {table}"}, status=status.HTTP_400_BAD_REQUEST)
 
     model_fields = {field.name for field in model._meta.fields}
+    created, updated = 0, 0
+    failed_records = []
 
     with transaction.atomic():
         for record in records:
             obj_id = record.get("id")
             if not obj_id:
+                failed_records.append({"id": None, "table": table, "error": "Missing 'id' in record"})
                 continue
 
-            # Strip 'firmId' from defaults if the model does not have it
+            # Remove 'firmId' from record if model doesn't support it (e.g. Firm model)
             defaults = {
                 k: v for k, v in record.items()
                 if k in model_fields
@@ -61,10 +62,16 @@ def sync_data(request):
 
             try:
                 _, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
-                created += int(is_new)
-                updated += int(not is_new)
+                if is_new:
+                    created += 1
+                else:
+                    updated += 1
             except Exception as e:
-                failed_records.append({"id": obj_id, "error": str(e), "table": table})
+                failed_records.append({
+                    "id": obj_id,
+                    "table": table,
+                    "error": str(e)
+                })
 
     return Response({
         "status": "success" if not failed_records else "partial",
@@ -73,7 +80,7 @@ def sync_data(request):
         "updated": updated,
         "failed": len(failed_records),
         "errors": failed_records
-    }, status=200)
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -83,23 +90,24 @@ def fetch_data(request):
     updated_after = request.query_params.get("updatedAfter")
 
     if not table:
-        return Response({"error": "'table' parameter is required"}, status=400)
+        return Response({"error": "'table' parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
 
     model = MODEL_MAP.get(table)
     if not model:
-        return Response({"error": f"Invalid table name: {table}"}, status=400)
+        return Response({"error": f"Invalid table name: {table}"}, status=status.HTTP_400_BAD_REQUEST)
 
-    queryset = model.objects.all()
     model_fields = {field.name for field in model._meta.fields}
+    queryset = model.objects.all()
 
-    if firm_id and 'firmId' in model_fields:
+    # Skip firmId filter for "firms"
+    if table != "firms" and firm_id and 'firmId' in model_fields:
         queryset = queryset.filter(firmId=firm_id)
 
     if updated_after and 'updatedAt' in model_fields:
         try:
             queryset = queryset.filter(updatedAt__gt=updated_after)
         except Exception:
-            return Response({"error": "Invalid 'updatedAfter' format"}, status=400)
+            return Response({"error": "Invalid 'updatedAfter' format"}, status=status.HTTP_400_BAD_REQUEST)
 
     records = [model_to_dict(obj) for obj in queryset]
 
@@ -107,4 +115,4 @@ def fetch_data(request):
         "table": table,
         "count": len(records),
         "records": records
-    }, status=200)
+    }, status=status.HTTP_200_OK)
