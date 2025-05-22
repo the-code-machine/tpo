@@ -59,7 +59,7 @@ def sync_data(request):
                 k: v for k, v in record.items()
                 if k in model_fields
             }
-
+            
             try:
                 _, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
                 if is_new:

@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from .models import  Customer
+from .models import  Customer,SharedFirm
 from .serializers import CustomerSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -8,6 +8,7 @@ import requests
 from subscription.models import Subscription
 from datetime import date
 from .serializers import CustomerSyncToggleSerializer
+from sync.models import Firm
 API_KEY = "863e3f5d-dc99-11ef-8b17-0200cd936042"  
 
 
@@ -149,3 +150,103 @@ def toggle_customer_sync(request):
         return Response({"status": "success", "sync_enabled": serializer.data["sync_enabled"]})
     else:
         return Response(serializer.errors, status=400)
+
+
+@api_view(['POST'])
+def share_firm_to_customer(request):
+    phone = request.data.get("phone")
+    firm_id = request.data.get("firm_id")
+    role = request.data.get("role")
+
+    if not phone or not firm_id:
+        return Response({"error": "phone and firm_id required"}, status=400)
+
+    try:
+        customer = Customer.objects.get(phone=phone)
+    except Customer.DoesNotExist:
+        return Response({"error": "Customer with this phone does not exist"}, status=404)
+
+    firm = Firm.objects.filter(id=firm_id).first()
+    if not firm:
+        return Response({"error": "Firm not found"}, status=404)
+
+    SharedFirm.objects.update_or_create(firm=firm, customer=customer, defaults={"role": role})
+    return Response({"status": "success", "message": "Firm shared successfully"})
+
+
+@api_view(['GET'])
+def get_firm_users(request):
+    firm_id = request.query_params.get('firmId')
+    if not firm_id:
+        return Response({"error": "firmId is required"}, status=400)
+
+    shared_entries = SharedFirm.objects.filter(firm_id=firm_id).select_related('customer')
+    users = [{
+        "name": entry.customer.name,
+        "phone": entry.customer.phone,
+        "email": entry.customer.email,
+        "role": entry.role,
+    } for entry in shared_entries]
+
+    return Response({"status": "success", "synced_users": users})
+
+
+@api_view(['POST'])
+def change_shared_role(request):
+    phone = request.data.get("phone")
+    firm_id = request.data.get("firm_id")
+    new_role = request.data.get("role")
+
+    if not (phone and firm_id and new_role):
+        return Response({"error": "phone, firm_id and role are required"}, status=400)
+
+    try:
+        customer = Customer.objects.get(phone=phone)
+        shared = SharedFirm.objects.get(customer=customer, firm_id=firm_id)
+        shared.role = new_role
+        shared.save()
+        return Response({"status": "success", "message": "Role updated"})
+    except Customer.DoesNotExist:
+        return Response({"error": "Customer not found"}, status=404)
+    except SharedFirm.DoesNotExist:
+        return Response({"error": "SharedFirm not found"}, status=404)
+
+@api_view(['POST'])
+def remove_shared_firm(request):
+    phone = request.data.get("phone")
+    firm_id = request.data.get("firm_id")
+
+    if not (phone and firm_id):
+        return Response({"error": "phone and firm_id are required"}, status=400)
+
+    try:
+        customer = Customer.objects.get(phone=phone)
+        shared = SharedFirm.objects.get(customer=customer, firm_id=firm_id)
+        shared.delete()
+        return Response({"status": "success", "message": "User removed from shared firm"})
+    except Customer.DoesNotExist:
+        return Response({"error": "Customer not found"}, status=404)
+    except SharedFirm.DoesNotExist:
+        return Response({"error": "SharedFirm not found"}, status=404)
+
+@api_view(['GET'])
+def get_shared_firms_by_phone(request):
+    phone = request.query_params.get("phone")
+
+    if not phone:
+        return Response({"error": "phone is required"}, status=400)
+
+    try:
+        customer = Customer.objects.get(phone=phone)
+        shared_firms = SharedFirm.objects.filter(customer=customer).select_related('firm')
+        data = [
+            {
+                "firm_id": s.firm.id,
+                "firm_name": s.firm.name,
+                "role": s.role
+            }
+            for s in shared_firms
+        ]
+        return Response({"status": "success", "shared_firms": data})
+    except Customer.DoesNotExist:
+        return Response({"error": "Customer not found"}, status=404)
