@@ -153,6 +153,8 @@ class Party(models.Model):
 
     openingBalance = models.FloatField(blank=True, null=True)
     openingBalanceType = models.TextField(blank=True, null=True)  # 'to_pay' / 'to_receive'
+    currentBalance = models.FloatField(blank=True, null=True)
+    currentBalanceType = models.TextField(blank=True, null=True)  # 'to_pay' / 'to_receive'
     openingBalanceDate = models.TextField(blank=True, null=True)
 
     creditLimitType = models.TextField(default='none')  # e.g., 'none'
