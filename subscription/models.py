@@ -4,8 +4,12 @@ from customer.models import Customer
 
 import os
 
+import uuid
+
 def exe_upload_path(instance, filename):
-    return os.path.join("executables", "app.exe")  # fixed name
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4()}.{ext}"
+    return os.path.join("executables", filename)
 
 class ExecutableFile(models.Model):
     file = models.FileField(upload_to=exe_upload_path)
