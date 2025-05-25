@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 import requests
-from subscription.models import Subscription
+from subscription.models import Subscription,Plan
 from datetime import date
 from .serializers import CustomerSyncToggleSerializer
 from sync.models import Firm
