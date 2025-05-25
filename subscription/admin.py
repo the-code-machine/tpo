@@ -1,6 +1,10 @@
 from django.contrib import admin
-from .models import Plan, Subscription
+from .models import Plan, Subscription, ExecutableFile
 
+@admin.register(ExecutableFile)
+class ExecutableFileAdmin(admin.ModelAdmin):
+    list_display = ['__str__']
+    
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):
     list_display = ('name', 'price', 'duration_days')

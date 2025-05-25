@@ -2,7 +2,28 @@ from django.db import models
 from datetime import timedelta, date
 from customer.models import Customer
 
+import os
 
+def exe_upload_path(instance, filename):
+    return os.path.join("executables", "app.exe")  # fixed name
+
+class ExecutableFile(models.Model):
+    file = models.FileField(upload_to=exe_upload_path)
+
+    def save(self, *args, **kwargs):
+        # Delete old file if it exists
+        try:
+            old_instance = ExecutableFile.objects.get(pk=self.pk)
+            if old_instance.file and old_instance.file != self.file:
+                old_instance.file.delete(save=False)
+        except ExecutableFile.DoesNotExist:
+            pass
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Executable - {self.file.name}"
+    
+    
 class Plan(models.Model):
     name = models.CharField(max_length=50)
     description = models.TextField(blank=True)

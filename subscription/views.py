@@ -11,8 +11,18 @@ from rest_framework import status
 from rest_framework import viewsets
 from .models import *
 from .serializers import *
+from django.http import FileResponse, Http404
+from .models import ExecutableFile
 razorpay_client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
+def download_exe(request):
+    try:
+        exe = ExecutableFile.objects.latest('id')
+        filepath = exe.file.path
+        return FileResponse(open(filepath, 'rb'), as_attachment=True, filename='app.exe')
+    except ExecutableFile.DoesNotExist:
+        raise Http404("Executable not found.")
+    
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
