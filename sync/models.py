@@ -7,7 +7,7 @@ class Firm(models.Model):
     name = models.TextField()
     phone = models.TextField()
     gstNumber = models.TextField(blank=True, null=True)
-    owner = models.TextField()
+    owner = models.TextField(null=True)
     ownerName = models.TextField(blank=True, null=True)
     businessName = models.TextField(blank=True, null=True)
     businessLogo = models.TextField(blank=True, null=True)
