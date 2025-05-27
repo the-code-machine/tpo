@@ -186,5 +186,3 @@ JAZZMIN_SETTINGS = {
 RAZORPAY_KEY_ID = "rzp_test_qDupOBdAM5OsCl"
 RAZORPAY_KEY_SECRET = "GQsajnN5Ch7DO6DXrVCLKxci"
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
