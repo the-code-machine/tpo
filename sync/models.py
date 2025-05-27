@@ -284,6 +284,8 @@ class DocumentItem(models.Model):
     # Pricing
     pricePerUnit = models.FloatField()
     amount = models.FloatField()
+    wholesalePrice = models.FloatField(blank=True, null=True)
+    wholesaleQuantity = models.FloatField(blank=True, null=True)
 
     # Batch details
     mfgDate = models.TextField(blank=True, null=True)
