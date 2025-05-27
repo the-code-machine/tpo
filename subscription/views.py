@@ -2,7 +2,7 @@ import razorpay
 import hmac
 import hashlib
 from datetime import date, timedelta
-
+from rest_framework.decorators import api_view
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -23,6 +23,16 @@ def download_exe(request):
     except ExecutableFile.DoesNotExist:
         raise Http404("Executable not found.")
     
+@api_view(['GET'])
+def get_latest_version(request):
+    latest_file = ExecutableFile.objects.order_by('-uploaded_at').first()
+    if not latest_file:
+        return Response({"detail": "No executable found."}, status=status.HTTP_404_NOT_FOUND)
+    
+    return Response({
+        "version": latest_file.version,
+        "file_url": request.build_absolute_uri(latest_file.file.url)
+    }) 
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer

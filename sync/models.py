@@ -87,7 +87,7 @@ class Item(models.Model):
     saleDiscount = models.FloatField(blank=True, null=True)
     saleDiscountType = models.TextField(blank=True, null=True)  # 'percentage' or 'amount'
     wholesalePrice = models.FloatField(blank=True, null=True)
-
+    wholesaleQuantity = models.FloatField(blank=True, null=True)
     purchasePrice = models.FloatField(blank=True, null=True)
     purchasePriceTaxInclusive = models.BooleanField(default=False)
 

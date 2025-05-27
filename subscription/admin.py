@@ -1,9 +1,21 @@
 from django.contrib import admin
 from .models import Plan, Subscription, ExecutableFile
-
+from django.utils.html import format_html
 @admin.register(ExecutableFile)
 class ExecutableFileAdmin(admin.ModelAdmin):
-    list_display = ['__str__']
+    list_display = ['__str__', 'uploaded_at', 'file_link']
+
+    def file_link(self, obj):
+        if obj.file:
+            return format_html(f'<a href="{obj.file.url}" target="_blank">Download</a>')
+        return "-"
+    file_link.short_description = 'File Link'
+
+    def has_add_permission(self, request):
+        # Allow adding only if no ExecutableFile exists
+        if ExecutableFile.objects.count() >= 1:
+            return False
+        return super().has_add_permission(request)
     
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):

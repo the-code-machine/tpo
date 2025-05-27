@@ -1,7 +1,7 @@
 from django.db import models
 from datetime import timedelta, date
 from customer.models import Customer
-
+from django.core.exceptions import ValidationError
 import os
 
 import uuid
@@ -13,9 +13,16 @@ def exe_upload_path(instance, filename):
 
 class ExecutableFile(models.Model):
     file = models.FileField(upload_to=exe_upload_path)
+    version = models.CharField(max_length=50)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        # Prevent multiple entries
+        if not self.pk and ExecutableFile.objects.exists():
+            raise ValidationError("Only one executable file is allowed.")
 
     def save(self, *args, **kwargs):
-        # Delete old file if it exists
+        self.full_clean()  # This calls clean()
         try:
             old_instance = ExecutableFile.objects.get(pk=self.pk)
             if old_instance.file and old_instance.file != self.file:
@@ -25,8 +32,7 @@ class ExecutableFile(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Executable - {self.file.name}"
-    
+        return f"{self.version} - {self.file.name}"   
     
 class Plan(models.Model):
     name = models.CharField(max_length=50)
