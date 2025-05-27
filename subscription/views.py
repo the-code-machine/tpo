@@ -28,11 +28,15 @@ def get_latest_version(request):
     latest_file = ExecutableFile.objects.order_by('-uploaded_at').first()
     if not latest_file:
         return Response({"detail": "No executable found."}, status=status.HTTP_404_NOT_FOUND)
-    
+
+    file_name = latest_file.file.name.split('/')[-1]  # get just the filename
+    file_url = request.build_absolute_uri(f'/executables/{file_name}')
+
     return Response({
         "version": latest_file.version,
-        "file_url": request.build_absolute_uri(latest_file.file.url)
-    }) 
+        "file_url": file_url,
+    })
+    
 class SubscriptionViewSet(viewsets.ModelViewSet):
     queryset = Subscription.objects.all()
     serializer_class = SubscriptionSerializer
