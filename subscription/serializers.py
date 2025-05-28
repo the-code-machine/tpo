@@ -7,10 +7,15 @@ class PlanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Plan
-        fields = ['id', 'name', 'description', 'price', 'discount', 'duration_days', 'discounted_price']
+        fields = [
+            'id', 'name', 'description', 'price', 'discount',
+            'duration_days', 'discounted_price',
+            'max_devices', 'max_firms'
+        ]
 
     def get_discounted_price(self, obj):
         return obj.discounted_price
+
 
         
 class SubscriptionSerializer(serializers.ModelSerializer):

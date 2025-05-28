@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 import requests
 from subscription.models import Subscription,Plan
-from datetime import date
+from datetime import date, timedelta
 from .serializers import CustomerSyncToggleSerializer
 from sync.models import Firm
 API_KEY = "863e3f5d-dc99-11ef-8b17-0200cd936042"  
@@ -39,13 +39,15 @@ def verify_otp_view(request):
     session_id = request.data.get("session_id")
     otp = request.data.get("otp")
     phone = request.data.get("phone")
-    name = request.data.get("name")  # optional
-    email = request.data.get("email")  # optional
+    name = request.data.get("name")
+    email = request.data.get("email")
+    machine_id = request.data.get("machine_id")
+    force_replace = request.data.get("force_replace", False)
 
-    if not session_id or not otp or not phone:
-        return Response({"detail": "Phone, Session ID and OTP are required."}, status=400)
+    if not session_id or not otp or not phone or not machine_id:
+        return Response({"detail": "Phone, OTP, Machine ID, and Session ID are required."}, status=400)
 
-    # ✅ OTP verification
+    # OTP verification
     url = f"https://2factor.in/API/V1/{API_KEY}/SMS/VERIFY/{session_id}/{otp}"
     response = requests.get(url)
     data = response.json()
@@ -53,34 +55,47 @@ def verify_otp_view(request):
     if data.get("Status") != "Success":
         return Response({"detail": "Invalid OTP"}, status=400)
 
-    # ✅ Get or create customer
     customer, created = Customer.objects.get_or_create(phone=phone)
 
-    # ✅ Update name/email if provided
     if name:
         customer.name = name
     if email:
         customer.email = email
-    customer.save()
 
-    # ✅ Assign Free Trial if new
-    # ✅ Assign Free Trial if new
+    # Assign trial if new
     if created:
         try:
-            free_plan = Plan.objects.get(
-                name__iexact="Free Trial",
-                price=0,
-                duration_days=7
-            )
+            plan = Plan.objects.get(name__iexact="Free Trial", price=0, duration_days=7)
             Subscription.objects.create(
                 customer=customer,
-                plan=free_plan,
+                plan=plan,
                 start_date=date.today(),
-                end_date=date.today() + timedelta(days=free_plan.duration_days),
+                end_date=date.today() + timedelta(days=plan.duration_days),
                 is_active=True
             )
         except Plan.DoesNotExist:
-            return Response({"detail": "Valid Free Trial plan not found"}, status=500)
+            return Response({"detail": "Trial plan not configured"}, status=500)
+
+    subscription = customer.subscriptions.filter(is_active=True).order_by('-end_date').first()
+    allowed_devices = subscription.plan.max_devices if subscription and subscription.plan else 1
+
+    # ✅ Machine ID logic
+    if machine_id not in customer.machine_ids:
+        if len(customer.machine_ids) >= allowed_devices:
+            if force_replace:
+                # Replace the oldest machine_id with new one
+                customer.machine_ids.pop(0)
+                customer.machine_ids.append(machine_id)
+            else:
+                return Response({
+                    "detail": f"Device limit exceeded. Plan allows {allowed_devices} device(s).",
+                    "force_logout": True,
+                    "can_replace": True
+                }, status=403)
+        else:
+            customer.machine_ids.append(machine_id)
+
+    customer.save()
 
     return Response({
         "detail": "OTP Verified",
@@ -88,50 +103,51 @@ def verify_otp_view(request):
         "phone": customer.phone,
         "name": customer.name,
         "email": customer.email,
-        "new_user": created
-    }, status=200)
+        "new_user": created,
+        "force_logout": False
+    })
 
 
 @api_view(['GET'])
 def get_user_info_view(request):
-    phone = request.query_params.get("phone")  # or use customer_id
+    phone = request.query_params.get("phone")
+    machine_id = request.query_params.get("machine_id")
 
-    if not phone:
-        return Response({"detail": "Phone number is required."}, status=400)
+    if not phone or not machine_id:
+        return Response({"detail": "Phone number and Machine ID are required."}, status=400)
 
     try:
         customer = Customer.objects.get(phone=phone)
     except Customer.DoesNotExist:
         return Response({"detail": "Customer not found."}, status=404)
 
-    # Get latest subscription
     subscription = customer.subscriptions.order_by('-end_date').first()
 
-    subscription_data = None
-    if subscription:
-        # Update status if expired
-        if subscription.end_date < date.today():
-            subscription.is_active = False
-            subscription.save()
+    if subscription and subscription.end_date < date.today():
+        subscription.is_active = False
+        subscription.save()
 
-        subscription_data = {
-            "plan_name": subscription.plan.name,
-            "description": subscription.plan.description,
-            "start_date": subscription.start_date,
-            "end_date": subscription.end_date,
-            "is_active": subscription.is_active,
-            "price": float(subscription.plan.price),
-            "discount": float(subscription.plan.discount),
-            "final_price": float(subscription.plan.discounted_price),
-        }
+    subscription_data = {
+        "plan_name": subscription.plan.name,
+        "description": subscription.plan.description,
+        "start_date": subscription.start_date,
+        "end_date": subscription.end_date,
+        "is_active": subscription.is_active,
+        "price": float(subscription.plan.price),
+        "discount": float(subscription.plan.discount),
+        "final_price": float(subscription.plan.discounted_price),
+    } if subscription else None
+
+    force_logout = machine_id not in customer.machine_ids
 
     return Response({
         "customer_id": customer.id,
         "name": customer.name,
         "phone": customer.phone,
         "email": customer.email,
-        "sync_enabled":customer.sync_enabled,
-        "subscription": subscription_data
+        "sync_enabled": customer.sync_enabled,
+        "subscription": subscription_data,
+        "force_logout": force_logout
     })
 
 @api_view(["POST"])

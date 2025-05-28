@@ -6,9 +6,9 @@ class Customer(models.Model):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
-
-    # NEW: Add a sync control
-    sync_enabled = models.BooleanField(default=True)
+    sync_enabled = models.BooleanField(default=False)
+    machine_ids = models.ArrayField(models.CharField(max_length=255), default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)  # ✅ account creation time
 
     def __str__(self):
         return self.name
