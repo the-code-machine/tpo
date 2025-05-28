@@ -2,12 +2,15 @@ from django.db import models
 from django.apps import apps
 from datetime import date
 from django.contrib.postgres.fields import ArrayField
+
+def default_machine_ids():
+    return []
 class Customer(models.Model):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
     sync_enabled = models.BooleanField(default=False)
-    machine_ids = models.JSONField(default=list, blank=True)
+    machine_ids = models.JSONField(default=default_machine_ids, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)  # ✅ account creation time
 
     def __str__(self):
