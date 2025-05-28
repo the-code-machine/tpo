@@ -7,7 +7,7 @@ class Customer(models.Model):
     phone = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
     sync_enabled = models.BooleanField(default=False)
-    machine_ids = ArrayField(models.CharField(max_length=255), default=list, blank=True)
+    machine_ids = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)  # ✅ account creation time
 
     def __str__(self):

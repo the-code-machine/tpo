@@ -78,7 +78,11 @@ def verify_otp_view(request):
 
     subscription = customer.subscriptions.filter(is_active=True).order_by('-end_date').first()
     allowed_devices = subscription.plan.max_devices if subscription and subscription.plan else 1
-
+    
+    # Ensure machine_ids is always a list
+    if not isinstance(customer.machine_ids, list):
+        customer.machine_ids = []
+        
     # ✅ Machine ID logic
     if machine_id not in customer.machine_ids:
         if len(customer.machine_ids) >= allowed_devices:
