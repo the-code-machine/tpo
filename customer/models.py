@@ -5,6 +5,7 @@ from django.contrib.postgres.fields import ArrayField
 
 def default_machine_ids():
     return []
+
 class Customer(models.Model):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=15, unique=True)
