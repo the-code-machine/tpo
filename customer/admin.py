@@ -24,10 +24,4 @@ class CustomerAdmin(admin.ModelAdmin):
     download_as_csv.short_description = "Download selected customers as CSV"
 
 
-@admin.register(Customer)
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'email', 'phone', 'created_at')  # ✅ include created_at
-    search_fields = ('name', 'email', 'phone','created_at')
-    readonly_fields = ('created_at',)  # ✅ make it readonly in admin form
-
 
