@@ -200,7 +200,14 @@ def get_firm_users(request):
     if not firm_id:
         return Response({"error": "firmId is required"}, status=400)
 
-    shared_entries = SharedFirm.objects.filter(firm_id=firm_id).select_related('customer')
+    try:
+        firm = Firm.objects.get(id=firm_id)
+    except Firm.DoesNotExist:
+        return Response({"error": "Firm not found"}, status=404)
+
+    shared_entries = SharedFirm.objects.filter(firm=firm).select_related('customer')
+
+
     users = [{
         "name": entry.customer.name,
         "phone": entry.customer.phone,
