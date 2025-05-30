@@ -3,11 +3,16 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.forms.models import model_to_dict
 from django.db import transaction
+from customer.models import SharedFirm
 from .models import (
     Firm, Category, Unit, UnitConversion, Item, Group, Party, PartyAdditionalField,
     Document, DocumentItem, DocumentCharge, DocumentTransportation, DocumentRelationship,
     StockMovement, BankAccount, BankTransaction, Payment
 )
+
+def has_access_to_firm(firm_id, owner):
+    return Firm.objects.filter(id=firm_id, owner=owner).exists() or \
+           SharedFirm.objects.filter(firm_id=firm_id, customer__mobile=owner).exists()
 
 # Mapping table name to model class
 MODEL_MAP = {
@@ -49,9 +54,9 @@ def sync_data(request):
     # Verify firmId ownership for tables that have firmId (except "firms" table itself)
     if table != "firms" and 'firmId' in model_fields:
         firm_ids = set(r.get("firmId") for r in records if r.get("firmId"))
-        allowed_firm_ids = set(Firm.objects.filter(id__in=firm_ids, owner=owner).values_list("id", flat=True))
-        if not firm_ids.issubset(allowed_firm_ids):
-            return Response({"error": "One or more firmId values do not belong to the specified owner."}, status=status.HTTP_403_FORBIDDEN)
+        for fid in firm_ids:
+            if not has_access_to_firm(fid, owner):
+                return Response({"error": f"Access denied: You do not have access to firmId {fid}"}, status=status.HTTP_403_FORBIDDEN)
 
     # For firms table, verify that only owned firm(s) are modified
     if table == "firms":
@@ -127,8 +132,8 @@ def fetch_data(request):
         if not firm_id:
             return Response({"error": "'firmId' parameter is required for this table"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if not Firm.objects.filter(id=firm_id, owner=owner).exists():
-            return Response({"error": "Access denied: firm does not belong to the owner"}, status=status.HTTP_403_FORBIDDEN)
+        if not has_access_to_firm(firm_id, owner):
+            return Response({"error": "Access denied: You do not have access to this firm"}, status=status.HTTP_403_FORBIDDEN)
 
         if 'firmId' in model_fields:
             queryset = queryset.filter(firmId=firm_id)
