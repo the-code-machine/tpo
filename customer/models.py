@@ -36,7 +36,7 @@ class Customer(models.Model):
             )
 
 class SharedFirm(models.Model):
-    firm = models.ForeignKey('sync.Firm', on_delete=models.CASCADE, related_name='shared_with')
+    firm = models.ForeignKey('sync.Firm', on_delete=models.SET_NULL,null=True,blank=True, related_name='shared_with')
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='shared_firms')
     role = models.CharField(max_length=50)
     shared_at = models.DateTimeField(auto_now_add=True)
