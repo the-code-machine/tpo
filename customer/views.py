@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from .models import  Customer,SharedFirm
-from .serializers import CustomerSerializer
+from .serializers import CustomerSerializer,SharedFirmSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -206,7 +206,7 @@ def get_firm_users(request):
         return Response({"error": "Firm not found"}, status=404)
 
     shared_entries = SharedFirm.objects.filter(firm=firm).select_related('customer')
-
+    serializer = SharedFirmSerializer(shared_entries, many=True)
 
     users = [{
         "name": entry.customer.name,
@@ -215,7 +215,7 @@ def get_firm_users(request):
         "role": entry.role,
     } for entry in shared_entries]
 
-    return Response({"status": "success", "synced_users": users})
+    return Response({"status": "success", "synced_users": users,"whole":serializer.data})
 
 
 @api_view(['POST'])

@@ -1,7 +1,7 @@
 # customer/serializers.py
 
 from rest_framework import serializers
-from .models import  Customer
+from .models import  Customer,SharedFirm
 from subscription.models import Subscription, Plan
 from datetime import date, timedelta
 
@@ -45,3 +45,10 @@ class CustomerSyncToggleSerializer(serializers.ModelSerializer):
     class Meta:
         model = Customer
         fields = ['sync_enabled']
+        
+class SharedFirmSerializer(serializers.ModelSerializer):
+    customer = CustomerSerializer()
+
+    class Meta:
+        model = SharedFirm
+        fields = ['id', 'firm', 'customer', 'role', 'shared_at']
