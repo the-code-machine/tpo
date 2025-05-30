@@ -11,6 +11,7 @@ class Firm(models.Model):
     ownerName = models.TextField(blank=True, null=True)
     businessName = models.TextField(blank=True, null=True)
     businessLogo = models.TextField(blank=True, null=True)
+    customFields = models.JSONField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     createdAt = models.TextField()
     updatedAt = models.TextField()
