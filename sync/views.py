@@ -60,12 +60,10 @@ def sync_data(request):
         firm_ids = set()
 
     if table == "firms":
-        firm_ids = set(r.get("id") for r in records if r.get("id"))
-        allowed_ids = set(Firm.objects.filter(id__in=firm_ids, owner=owner).values_list("id", flat=True))
-        new_ids = firm_ids - allowed_ids
-        for r in records:
-            if r.get("id") in new_ids and r.get("owner") != owner:
-                return Response({"error": f"New firm record with id {r.get('id')} must have owner = {owner}"}, status=status.HTTP_403_FORBIDDEN)
+       for r in records:
+           if not r.get("owner") or r.get("owner") != owner:
+               return Response({"error": f"Each firm record must have owner = {owner}"}, status=status.HTTP_403_FORBIDDEN)
+
 
     # Fetch existing records
     model_objects = model.objects.all()
