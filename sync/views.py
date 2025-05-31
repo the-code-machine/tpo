@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.forms.models import model_to_dict
 from django.db import transaction
+from django.db.models import Q
 from customer.models import SharedFirm
 from .models import (
     Firm, Category, Unit, UnitConversion, Item, Group, Party, PartyAdditionalField,
@@ -157,7 +158,10 @@ def fetch_data(request):
         if 'firmId' in model_fields:
             queryset = queryset.filter(firmId=firm_id)
     else:
-        queryset = queryset.filter(owner=owner)
+        queryset = queryset.filter(
+        Q(owner=owner) | Q(shared_with__customer__mobile=owner)
+         ).distinct()
+
 
     if updated_after and 'updatedAt' in model_fields:
         try:
