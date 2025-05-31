@@ -1,6 +1,20 @@
 import uuid
 from django.db import models
 
+class FirmSyncFlag(models.Model):
+    CHANGE_TYPE_CHOICES = [
+        ('create', 'Create'),
+        ('update', 'Update'),
+        ('delete', 'Delete'),
+    ]
+
+    firm_id = models.CharField(max_length=64)  # assuming it's a string ID
+    changed_by_mobile = models.CharField(max_length=20)
+    change_type = models.CharField(max_length=10, choices=CHANGE_TYPE_CHOICES)
+    target_table = models.CharField(max_length=64, blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
+    
 class Firm(models.Model):
     id = models.CharField(primary_key=True, max_length=100)  # match TEXT in SQLite
     country = models.TextField()

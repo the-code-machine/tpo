@@ -7,14 +7,13 @@ from customer.models import SharedFirm
 from .models import (
     Firm, Category, Unit, UnitConversion, Item, Group, Party, PartyAdditionalField,
     Document, DocumentItem, DocumentCharge, DocumentTransportation, DocumentRelationship,
-    StockMovement, BankAccount, BankTransaction, Payment
+    StockMovement, BankAccount, BankTransaction, Payment, FirmSyncFlag
 )
 
 def has_access_to_firm(firm_id, owner):
     return Firm.objects.filter(id=firm_id, owner=owner).exists() or \
            SharedFirm.objects.filter(firm_id=firm_id, customer__mobile=owner).exists()
 
-# Mapping table name to model class
 MODEL_MAP = {
     "firms": Firm,
     "categories": Category,
@@ -35,12 +34,11 @@ MODEL_MAP = {
     "payments": Payment,
 }
 
-
 @api_view(['POST'])
 def sync_data(request):
     table = request.data.get("table")
     records = request.data.get("records")
-    owner = request.data.get("owner")  # 👈 Required: mobile number of current user
+    owner = request.data.get("owner")  # 👈 Mobile number
 
     if not table or not records or not owner:
         return Response({"error": "Parameters 'table', 'records', and 'owner' are required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -50,40 +48,50 @@ def sync_data(request):
         return Response({"error": f"Invalid table name: {table}"}, status=status.HTTP_400_BAD_REQUEST)
 
     model_fields = {field.name for field in model._meta.fields}
+    created, updated = 0, 0
+    failed_records = []
 
-    # Verify firmId ownership for tables that have firmId (except "firms" table itself)
     if table != "firms" and 'firmId' in model_fields:
         firm_ids = set(r.get("firmId") for r in records if r.get("firmId"))
         for fid in firm_ids:
             if not has_access_to_firm(fid, owner):
                 return Response({"error": f"Access denied: You do not have access to firmId {fid}"}, status=status.HTTP_403_FORBIDDEN)
+    else:
+        firm_ids = set()
 
-    # For firms table, verify that only owned firm(s) are modified
     if table == "firms":
         firm_ids = set(r.get("id") for r in records if r.get("id"))
-        allowed_firm_ids = set(Firm.objects.filter(id__in=firm_ids, owner=owner).values_list("id", flat=True))
-        new_firm_ids = firm_ids - allowed_firm_ids
-        # Allow new firms if they include owner=owner
+        allowed_ids = set(Firm.objects.filter(id__in=firm_ids, owner=owner).values_list("id", flat=True))
+        new_ids = firm_ids - allowed_ids
         for r in records:
-            if r.get("id") in new_firm_ids and r.get("owner") != owner:
+            if r.get("id") in new_ids and r.get("owner") != owner:
                 return Response({"error": f"New firm record with id {r.get('id')} must have owner = {owner}"}, status=status.HTTP_403_FORBIDDEN)
 
-    # Continue with sync logic
+    # Fetch existing records
     model_objects = model.objects.all()
-    if 'firmId' in model_fields:
+    if 'firmId' in model_fields and firm_ids:
         model_objects = model_objects.filter(firmId__in=firm_ids)
 
     existing_ids = set(model_objects.values_list("id", flat=True))
-    incoming_ids = set([r.get("id") for r in records if r.get("id")])
+    incoming_ids = set(r.get("id") for r in records if r.get("id"))
     to_delete_ids = existing_ids - incoming_ids
 
-    created, updated = 0, 0
-    failed_records = []
-
     with transaction.atomic():
+        # Handle deletions
         if to_delete_ids:
             model.objects.filter(id__in=to_delete_ids).delete()
+            for del_id in to_delete_ids:
+                # Pick a firmId to log (assuming single firmId context for deletion)
+                firm_id = next(iter(firm_ids), None)
+                if firm_id:
+                    FirmSyncFlag.objects.create(
+                        firm_id=firm_id,
+                        changed_by_mobile=owner,
+                        change_type='delete',
+                        target_table=table
+                    )
 
+        # Handle create/update
         for record in records:
             obj_id = record.get("id")
             if not obj_id:
@@ -91,12 +99,25 @@ def sync_data(request):
                 continue
 
             defaults = {k: v for k, v in record.items() if k in model_fields}
+
             try:
-                _, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
+                obj, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
+
+                # Log sync flag
+                firm_id = record.get("firmId") if 'firmId' in record else None
+                if firm_id:
+                    FirmSyncFlag.objects.create(
+                        firm_id=firm_id,
+                        changed_by_mobile=owner,
+                        change_type='create' if is_new else 'update',
+                        target_table=table
+                    )
+
                 if is_new:
                     created += 1
                 else:
                     updated += 1
+
             except Exception as e:
                 failed_records.append({"id": obj_id, "table": table, "error": str(e)})
 
@@ -137,7 +158,6 @@ def fetch_data(request):
 
         if 'firmId' in model_fields:
             queryset = queryset.filter(firmId=firm_id)
-
     else:
         queryset = queryset.filter(owner=owner)
 
@@ -149,11 +169,23 @@ def fetch_data(request):
 
     records = [model_to_dict(obj) for obj in queryset]
 
+    # 👇 Mark sync flags as resolved
+    if firm_id and table != "firms":
+        from sync.models import FirmSyncFlag  # make sure import path is correct
+
+        FirmSyncFlag.objects.filter(
+            firm_id=firm_id,
+            target_table=table,
+            resolved=False,
+            changed_by_mobile__ne=owner  # exclude changes made by the current device
+        ).update(resolved=True)
+
     return Response({
         "table": table,
         "count": len(records),
         "records": records
     }, status=status.HTTP_200_OK)
+
 
 
 @api_view(["POST"])
