@@ -13,7 +13,7 @@ from .models import (
 
 def has_access_to_firm(firm_id, owner):
     return Firm.objects.filter(id=firm_id, owner=owner).exists() or \
-           SharedFirm.objects.filter(firm_id=firm_id, customer__mobile=owner).exists()
+           SharedFirm.objects.filter(firm_id=firm_id, customer__phone=owner).exists()
 
 MODEL_MAP = {
     "firms": Firm,
@@ -159,7 +159,7 @@ def fetch_data(request):
             queryset = queryset.filter(firmId=firm_id)
     else:
         queryset = queryset.filter(
-        Q(owner=owner) | Q(shared_with__customer__mobile=owner)
+        Q(owner=owner) | Q(shared_with__customer__phone=owner)
          ).distinct()
 
 
@@ -171,16 +171,16 @@ def fetch_data(request):
 
     records = [model_to_dict(obj) for obj in queryset]
 
-    # 👇 Mark sync flags as resolved
-    if firm_id and table != "firms":
-        from sync.models import FirmSyncFlag  # make sure import path is correct
+    # # 👇 Mark sync flags as resolved
+    # if firm_id and table != "firms":
+    #     from sync.models import FirmSyncFlag  # make sure import path is correct
 
-        FirmSyncFlag.objects.filter(
-            firm_id=firm_id,
-            target_table=table,
-            resolved=False,
-            changed_by_mobile__ne=owner  # exclude changes made by the current device
-        ).update(resolved=True)
+    #     FirmSyncFlag.objects.filter(
+    #         firm_id=firm_id,
+    #         target_table=table,
+    #         resolved=False,
+    #         changed_by_mobile__ne=owner  # exclude changes made by the current device
+    #     ).update(resolved=True)
 
     return Response({
         "table": table,
