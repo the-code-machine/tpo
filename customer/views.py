@@ -149,27 +149,11 @@ def get_user_info_view(request):
         "name": customer.name,
         "phone": customer.phone,
         "email": customer.email,
-        "sync_enabled": customer.sync_enabled,
         "subscription": subscription_data,
         "force_logout": force_logout
     })
 
-@api_view(["POST"])
-def toggle_customer_sync(request):
-    phone = request.data.get("phone")
-    if not phone:
-        return Response({"error": "Phone number is required."}, status=400)
 
-    customer = Customer.objects.filter(phone=phone).first()
-    if not customer:
-        return Response({"error": "Customer not found."}, status=404)
-
-    serializer = CustomerSyncToggleSerializer(customer, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response({"status": "success", "sync_enabled": serializer.data["sync_enabled"]})
-    else:
-        return Response(serializer.errors, status=400)
 
 
 @api_view(['POST'])

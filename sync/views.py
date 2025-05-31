@@ -154,3 +154,30 @@ def fetch_data(request):
         "count": len(records),
         "records": records
     }, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def toggle_firm_sync_enabled(request):
+    firm_id = request.data.get("firmId")
+    owner = request.data.get("owner")  # required to verify access
+
+    if not firm_id or not owner:
+        return Response({"error": "'firmId' and 'owner' are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Validate firm access
+        firm = Firm.objects.get(id=firm_id)
+        if firm.owner != owner:
+            return Response({"error": "Access denied: Not the owner of this firm."}, status=status.HTTP_403_FORBIDDEN)
+    except Firm.DoesNotExist:
+        return Response({"error": "Firm not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Toggle sync_enabled
+    firm.sync_enabled = not firm.sync_enabled
+    firm.save(update_fields=["sync_enabled"])
+
+    return Response({
+        "status": "success",
+        "firmId": firm_id,
+        "sync_enabled": firm.sync_enabled
+    }, status=status.HTTP_200_OK)

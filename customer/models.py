@@ -10,7 +10,6 @@ class Customer(models.Model):
     name = models.CharField(max_length=100)
     phone = models.CharField(max_length=15, unique=True)
     email = models.EmailField(blank=True, null=True)
-    sync_enabled = models.BooleanField(default=False)
     machine_ids = models.JSONField(default=default_machine_ids, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)  # ✅ account creation time
 
@@ -36,7 +35,7 @@ class Customer(models.Model):
             )
 
 class SharedFirm(models.Model):
-    firm = models.ForeignKey('sync.Firm', on_delete=models.SET_NULL,null=True,blank=True, related_name='shared_with')
+    firm = models.ForeignKey('sync.Firm', on_delete=models.SET_NULL, null=True, blank=True, related_name='shared_with')
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='shared_firms')
     role = models.CharField(max_length=50)
     shared_at = models.DateTimeField(auto_now_add=True)

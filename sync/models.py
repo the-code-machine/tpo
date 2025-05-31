@@ -13,6 +13,7 @@ class Firm(models.Model):
     businessLogo = models.TextField(blank=True, null=True)
     customFields = models.JSONField(blank=True, null=True)
     address = models.TextField(blank=True, null=True)
+    sync_enabled = models.BooleanField(default=False)
     createdAt = models.TextField()
     updatedAt = models.TextField()
 
