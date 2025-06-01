@@ -42,7 +42,8 @@ def sync_data(request):
     owner = request.data.get("owner")  # 👈 Mobile number
 
     if not table or not records or not owner:
-        return Response({"error": "Parameters 'table', 'records', and 'owner' are required."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "Parameters 'table', 'records', and 'owner' are required."},
+                        status=status.HTTP_400_BAD_REQUEST)
 
     model = MODEL_MAP.get(table)
     if not model:
@@ -52,36 +53,42 @@ def sync_data(request):
     created, updated = 0, 0
     failed_records = []
 
+    # Safety check for firm access
+    firm_ids = set()
     if table != "firms" and 'firmId' in model_fields:
         firm_ids = set(r.get("firmId") for r in records if r.get("firmId"))
+        if not firm_ids:
+            return Response({"error": "Each record must have a 'firmId'"}, status=status.HTTP_400_BAD_REQUEST)
         for fid in firm_ids:
             if not has_access_to_firm(fid, owner):
-                return Response({"error": f"Access denied: You do not have access to firmId {fid}"}, status=status.HTTP_403_FORBIDDEN)
-    else:
-        firm_ids = set()
+                return Response({"error": f"Access denied: You do not have access to firmId {fid}"}, 
+                                status=status.HTTP_403_FORBIDDEN)
 
-    if table == "firms":
-       for r in records:
-           if not r.get("owner") or r.get("owner") != owner:
-               return Response({"error": f"Each firm record must have owner = {owner}"}, status=status.HTTP_403_FORBIDDEN)
+    elif table == "firms":
+        for r in records:
+            if not r.get("owner") or r.get("owner") != owner:
+                return Response({"error": f"Each firm record must have owner = {owner}"},
+                                status=status.HTTP_403_FORBIDDEN)
 
-
-    # Fetch existing records
-    model_objects = model.objects.all()
-    if 'firmId' in model_fields and firm_ids:
-        model_objects = model_objects.filter(firmId__in=firm_ids)
-
-    existing_ids = set(model_objects.values_list("id", flat=True))
-    incoming_ids = set(r.get("id") for r in records if r.get("id"))
-    to_delete_ids = existing_ids - incoming_ids
+    # Build per-firm deletion plan
+    to_delete_ids = set()
+    if table != "firms" and 'firmId' in model_fields:
+        for fid in firm_ids:
+            existing_ids = set(model.objects.filter(firmId=fid).values_list("id", flat=True))
+            incoming_ids = set(r["id"] for r in records if r.get("firmId") == fid and r.get("id"))
+            to_delete_ids.update(existing_ids - incoming_ids)
+    elif table == "firms":
+        # For firms, delete only firms owned by the user
+        existing_ids = set(model.objects.filter(owner=owner).values_list("id", flat=True))
+        incoming_ids = set(r.get("id") for r in records if r.get("id"))
+        to_delete_ids = existing_ids - incoming_ids
 
     with transaction.atomic():
-        # Handle deletions
+        # Delete safely
         if to_delete_ids:
             model.objects.filter(id__in=to_delete_ids).delete()
             for del_id in to_delete_ids:
-                # Pick a firmId to log (assuming single firmId context for deletion)
-                firm_id = next(iter(firm_ids), None)
+                firm_id = next((r.get("firmId") for r in records if r.get("id") == del_id), None)
                 if firm_id:
                     FirmSyncFlag.objects.create(
                         firm_id=firm_id,
@@ -90,7 +97,7 @@ def sync_data(request):
                         target_table=table
                     )
 
-        # Handle create/update
+        # Create or update
         for record in records:
             obj_id = record.get("id")
             if not obj_id:
@@ -98,11 +105,9 @@ def sync_data(request):
                 continue
 
             defaults = {k: v for k, v in record.items() if k in model_fields}
-
             try:
                 obj, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
 
-                # Log sync flag
                 firm_id = record.get("firmId") if 'firmId' in record else None
                 if firm_id:
                     FirmSyncFlag.objects.create(
