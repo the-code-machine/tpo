@@ -180,7 +180,7 @@ class Party(models.Model):
     paymentReminderEnabled = models.BooleanField(default=False,null=True)
     paymentReminderDays = models.IntegerField(blank=True, null=True)
 
-    loyaltyPointsEnabled = models.BooleanField(default=False)
+    loyaltyPointsEnabled = models.BooleanField(default=False,null=True)
 
     createdAt = models.TextField()
     updatedAt = models.TextField()
