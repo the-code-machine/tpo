@@ -52,13 +52,13 @@ def sync_data(request):
     print(f"🔄 Sync started for table: {table}")
     print(f"📦 Incoming records: {len(records)}")
     
-    if table == "parties":
-        pprint.pprint(records)  # Print all records coming in for debug
+    
+    pprint.pprint(records) 
     model_fields = {field.name for field in model._meta.fields}
     created, updated = 0, 0
     failed_records = []
 
-    # Safety check for firm access
+    
     firm_ids = set()
     if table != "firms" and 'firmId' in model_fields:
         firm_ids = set(r.get("firmId") for r in records if r.get("firmId"))
@@ -130,10 +130,10 @@ def sync_data(request):
             except Exception as e:
                 failed_records.append({"id": obj_id, "table": table, "error": str(e)})
         # After sync print current parties if syncing parties
-    if table == "parties":
-        print("📋 All Party records after sync:")
-        for p in model.objects.all():
-            print(f"- {p.id} | Firm: {p.firmId} | Name: {p.name}")
+    
+    print("📋 All Party records after sync:")
+    for p in model.objects.all():
+        print(f"- {p.id} | Firm - {p.firmId} | Name: {p.name}")
             
     return Response({
         "status": "success" if not failed_records else "partial",
