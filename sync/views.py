@@ -112,7 +112,7 @@ def sync_data(request):
             defaults = {k: v for k, v in record.items() if k in model_fields}
             try:
                 obj, is_new = model.objects.update_or_create(id=obj_id, defaults=defaults)
-
+                print(is_new)
                 firm_id = record.get("firmId") if 'firmId' in record else None
                 if firm_id:
                     FirmSyncFlag.objects.create(
@@ -128,6 +128,7 @@ def sync_data(request):
                     updated += 1
 
             except Exception as e:
+                print(str(e))
                 failed_records.append({"id": obj_id, "table": table, "error": str(e)})
         # After sync print current parties if syncing parties
     
