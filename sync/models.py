@@ -166,7 +166,7 @@ class Party(models.Model):
     state = models.TextField(blank=True, null=True)
     billingAddress = models.TextField(blank=True, null=True)
     shippingAddress = models.TextField(blank=True, null=True)
-    shippingEnabled = models.BooleanField(default=False)
+    shippingEnabled = models.BooleanField(default=False,null=True)
 
     openingBalance = models.FloatField(blank=True, null=True)
     openingBalanceType = models.TextField(blank=True, null=True)  # 'to_pay' / 'to_receive'
