@@ -177,7 +177,7 @@ class Party(models.Model):
     creditLimitType = models.TextField(default='none')  # e.g., 'none'
     creditLimitValue = models.FloatField(blank=True, null=True)
 
-    paymentReminderEnabled = models.BooleanField(default=False)
+    paymentReminderEnabled = models.BooleanField(default=False,null=True)
     paymentReminderDays = models.IntegerField(blank=True, null=True)
 
     loyaltyPointsEnabled = models.BooleanField(default=False)
