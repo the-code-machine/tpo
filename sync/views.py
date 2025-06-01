@@ -49,11 +49,6 @@ def sync_data(request):
     if not model:
         return Response({"error": f"Invalid table name: {table}"}, status=status.HTTP_400_BAD_REQUEST)
 
-    print(f"🔄 Sync started for table: {table}")
-    print(f"📦 Incoming records: {len(records)}")
-    
-    
-    pprint.pprint(records) 
     model_fields = {field.name for field in model._meta.fields}
     created, updated = 0, 0
     failed_records = []
@@ -130,12 +125,8 @@ def sync_data(request):
             except Exception as e:
                 print(str(e))
                 failed_records.append({"id": obj_id, "table": table, "error": str(e)})
-        # After sync print current parties if syncing parties
-    
-    print("📋 All Party records after sync:")
-    for p in model.objects.all():
-        print(f"- {p.id} | Firm - {p.firmId} | Name: {p.name}")
-            
+
+
     return Response({
         "status": "success" if not failed_records else "partial",
         "table": table,
