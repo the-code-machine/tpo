@@ -10,7 +10,7 @@ from .models import (
     Document, DocumentItem, DocumentCharge, DocumentTransportation, DocumentRelationship,
     StockMovement, BankAccount, BankTransaction, Payment, FirmSyncFlag
 )
-
+import pprint
 def has_access_to_firm(firm_id, owner):
     return Firm.objects.filter(id=firm_id, owner=owner).exists() or \
            SharedFirm.objects.filter(firm_id=firm_id, customer__phone=owner).exists()
@@ -49,6 +49,11 @@ def sync_data(request):
     if not model:
         return Response({"error": f"Invalid table name: {table}"}, status=status.HTTP_400_BAD_REQUEST)
 
+    print(f"🔄 Sync started for table: {table}")
+    print(f"📦 Incoming records: {len(records)}")
+    
+    if table == "parties":
+        pprint.pprint(records)  # Print all records coming in for debug
     model_fields = {field.name for field in model._meta.fields}
     created, updated = 0, 0
     failed_records = []
@@ -124,7 +129,12 @@ def sync_data(request):
 
             except Exception as e:
                 failed_records.append({"id": obj_id, "table": table, "error": str(e)})
-
+        # After sync print current parties if syncing parties
+    if table == "parties":
+        print("📋 All Party records after sync:")
+        for p in model.objects.all():
+            print(f"- {p.id} | Firm: {p.firmId} | Name: {p.name}")
+            
     return Response({
         "status": "success" if not failed_records else "partial",
         "table": table,
