@@ -202,26 +202,25 @@ def get_firm_users(request):
     return Response({"status": "success", "synced_users": users,"whole":serializer.data})
 
 
-@api_view(['GET'])
-def get_shared_firms_by_phone(request):
-    phone = request.GET.get("phone")
-    if not phone:
-        return Response({"error": "phone is required"}, status=400)
+@api_view(['POST'])
+def change_shared_role(request):
+    phone = request.data.get("phone")
+    firm_id = request.data.get("firm_id")
+    new_role = request.data.get("role")
+
+    if not (phone and firm_id and new_role):
+        return Response({"error": "phone, firm_id and role are required"}, status=400)
+
     try:
         customer = Customer.objects.get(phone=phone)
-        shared_firms = SharedFirm.objects.filter(customer=customer).select_related('firm')
-        data = [
-            {
-                "firm_id": s.firm.id,
-                "firm_name": s.firm.name,
-                "role": s.role
-            }
-            for s in shared_firms if s.firm is not None
-        ]
-        return Response({"status": "success", "shared_firms": data})
+        shared = SharedFirm.objects.get(customer=customer, firm_id=firm_id)
+        shared.role = new_role
+        shared.save()
+        return Response({"status": "success", "message": "Role updated"})
     except Customer.DoesNotExist:
         return Response({"error": "Customer not found"}, status=404)
-
+    except SharedFirm.DoesNotExist:
+        return Response({"error": "SharedFirm not found"}, status=404)
 
 @api_view(['POST'])
 def remove_shared_firm(request):
@@ -243,11 +242,9 @@ def remove_shared_firm(request):
 
 @api_view(['GET'])
 def get_shared_firms_by_phone(request):
-    phone = request.query_params.get("phone")
-
+    phone = request.GET.get("phone")
     if not phone:
         return Response({"error": "phone is required"}, status=400)
-
     try:
         customer = Customer.objects.get(phone=phone)
         shared_firms = SharedFirm.objects.filter(customer=customer).select_related('firm')
@@ -257,8 +254,9 @@ def get_shared_firms_by_phone(request):
                 "firm_name": s.firm.name,
                 "role": s.role
             }
-            for s in shared_firms
+            for s in shared_firms if s.firm is not None
         ]
         return Response({"status": "success", "shared_firms": data})
     except Customer.DoesNotExist:
         return Response({"error": "Customer not found"}, status=404)
+
