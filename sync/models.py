@@ -229,6 +229,7 @@ class Document(models.Model):
     # Common Fields
     ewaybill = models.TextField(blank=True, null=True)
     billingAddress = models.TextField(blank=True, null=True)
+    shippingAddress = models.TextField(blank=True, null=True)
     billingName = models.TextField(blank=True, null=True)
     poDate = models.TextField(blank=True, null=True)
     poNumber = models.TextField(blank=True, null=True)
