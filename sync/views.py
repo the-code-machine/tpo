@@ -213,12 +213,13 @@ def toggle_firm_sync_enabled(request):
     except Firm.DoesNotExist:
         return Response({"error": "Firm not found."}, status=status.HTTP_404_NOT_FOUND)
 
+    shared_firm = SharedFirm.objects.get(firm_id=firm_id)
     # Toggle sync_enabled
-    firm.sync_enabled = not firm.sync_enabled
-    firm.save(update_fields=["sync_enabled"])
+    shared_firm.sync_enabled = not shared_firm.sync_enabled
+    shared_firm.save(update_fields=["sync_enabled"])
 
     return Response({
         "status": "success",
         "firmId": firm_id,
-        "sync_enabled": firm.sync_enabled
+        "sync_enabled": shared_firm.sync_enabled
     }, status=status.HTTP_200_OK)

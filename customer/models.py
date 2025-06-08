@@ -39,5 +39,6 @@ class SharedFirm(models.Model):
     customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='shared_firms')
     role = models.CharField(max_length=50)
     shared_at = models.DateTimeField(auto_now_add=True)
+    sync_enabled = models.BooleanField(default=False)
 
 

@@ -51,4 +51,4 @@ class SharedFirmSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SharedFirm
-        fields = ['id', 'firm', 'customer', 'role', 'shared_at']
+        fields = ['id', 'firm', 'customer', 'role', 'shared_at','sync_enabled']
