@@ -7,7 +7,7 @@ from rest_framework import status
 import requests
 from subscription.models import Subscription,Plan
 from datetime import date, timedelta
-from .serializers import CustomerSyncToggleSerializer
+
 from sync.models import Firm
 API_KEY = "863e3f5d-dc99-11ef-8b17-0200cd936042"  
 
