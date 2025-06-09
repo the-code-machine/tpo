@@ -41,14 +41,11 @@ class CustomerSerializer(serializers.ModelSerializer):
         return customer
 
 
-class CustomerSyncToggleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Customer
-        fields = ['sync_enabled']
+
         
 class SharedFirmSerializer(serializers.ModelSerializer):
     customer = CustomerSerializer()
 
     class Meta:
         model = SharedFirm
-        fields = ['id', 'firm', 'customer', 'role', 'shared_at','sync_enabled']
+        fields = ['id', 'firm', 'customer', 'role', 'shared_at']
