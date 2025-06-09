@@ -177,18 +177,6 @@ def fetch_data(request):
             return Response({"error": "Invalid 'updatedAfter' format"}, status=status.HTTP_400_BAD_REQUEST)
 
     records = [model_to_dict(obj) for obj in queryset]
-
-    # # 👇 Mark sync flags as resolved
-    # if firm_id and table != "firms":
-    #     from sync.models import FirmSyncFlag  # make sure import path is correct
-
-    #     FirmSyncFlag.objects.filter(
-    #         firm_id=firm_id,
-    #         target_table=table,
-    #         resolved=False,
-    #         changed_by_mobile__ne=owner  # exclude changes made by the current device
-    #     ).update(resolved=True)
-
     return Response({
         "table": table,
         "count": len(records),
@@ -222,4 +210,36 @@ def toggle_firm_sync_enabled(request):
         "status": "success",
         "firmId": firm_id,
         "sync_enabled": shared_firm.sync_enabled
+    }, status=status.HTTP_200_OK)
+
+@api_view(["POST"])
+def delete_firm_with_shared(request):
+    firm_id = request.data.get("firmId")
+    owner = request.data.get("owner")  # mobile number
+
+    if not firm_id or not owner:
+        return Response({"error": "'firmId' and 'owner' are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Ensure the user has access and is the owner
+    try:
+        firm = Firm.objects.get(id=firm_id, owner=owner)
+    except Firm.DoesNotExist:
+        return Response({"error": "Firm not found or access denied."}, status=status.HTTP_403_FORBIDDEN)
+
+    with transaction.atomic():
+        # Delete all SharedFirm entries for the firm
+        SharedFirm.objects.filter(firm_id=firm_id).delete()
+
+        # Delete dependent models related to the firm
+        for model_name, model in MODEL_MAP.items():
+            model_fields = {f.name for f in model._meta.fields}
+            if "firmId" in model_fields:
+                model.objects.filter(firmId=firm_id).delete()
+
+        # Finally, delete the firm itself
+        firm.delete()
+
+    return Response({
+        "status": "success",
+        "message": f"Firm {firm_id} and all related data deleted successfully."
     }, status=status.HTTP_200_OK)
