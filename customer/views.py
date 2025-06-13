@@ -66,15 +66,19 @@ def verify_otp_view(request):
     if created:
         try:
             plan = Plan.objects.get(name__iexact="Free Trial", price=0, duration_days=7)
-            Subscription.objects.create(
+            # 🔐 Ensure no duplicate trial subscription
+            existing_trial = Subscription.objects.filter(customer=customer, plan=plan).exists()
+            if not existing_trial:
+                Subscription.objects.create(
                 customer=customer,
                 plan=plan,
                 start_date=date.today(),
                 end_date=date.today() + timedelta(days=plan.duration_days),
                 is_active=True
-            )
+                )
         except Plan.DoesNotExist:
             return Response({"detail": "Trial plan not configured"}, status=500)
+
 
     subscription = customer.subscriptions.filter(is_active=True).order_by('-end_date').first()
     allowed_devices = subscription.plan.max_devices if subscription and subscription.plan else 1
