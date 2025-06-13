@@ -14,7 +14,7 @@ class Customer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)  # ✅ account creation time
 
     def __str__(self):
-        return f"{self.name} ({self.number})"
+        return f"{self.name} ({self.phone})"
 
     def save(self, *args, **kwargs):
         is_new = self._state.adding
