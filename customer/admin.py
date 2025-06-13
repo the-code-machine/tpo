@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.admin import SimpleListFilter
 from .models import Customer
 from subscription.models import Subscription  # adjust if your app name is different
-
+from django.contrib import admin
 
 class PlanTypeFilter(SimpleListFilter):
     title = _('Plan Type')
