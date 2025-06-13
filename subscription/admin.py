@@ -23,6 +23,11 @@ class PlanAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'plan', 'start_date', 'end_date', 'is_active')
+    list_display = ('customer_display', 'plan', 'start_date', 'end_date', 'is_active')
     list_filter = ('is_active', 'plan')
-    exclude = ('end_date',)  # Optional: auto-calculated
+    exclude = ('end_date',)
+
+    def customer_display(self, obj):
+        return f"{obj.customer.name} ({obj.customer.phone})"
+    customer_display.short_description = 'Customer'
+
