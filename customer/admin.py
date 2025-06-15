@@ -4,6 +4,7 @@ from django.contrib.admin import SimpleListFilter
 from .models import Customer
 from subscription.models import Subscription  # adjust if your app name is different
 from django.contrib import admin
+from django.http import HttpResponse
 
 class PlanTypeFilter(SimpleListFilter):
     title = _('Plan Type')
