@@ -139,9 +139,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 300 * 1024 * 1024   # 300 MB
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 JAZZMIN_SETTINGS = {
-    "site_title": "PaperBill",
-    "site_header": "PaperBill",
-    "site_brand": "PaperBill",
+    "site_title": "Baniya Bandhu",
+    "site_header": "Baniya Bandhu",
+    "site_brand": "Baniya Bandhu",
     "site_logo": "images/logo.png",
     "site_logo_classes": "img-circle elevation-3",
     "site_logo_height": "40px",
@@ -149,8 +149,8 @@ JAZZMIN_SETTINGS = {
     "login_logo": "images/logo.png",            # Same or separate logo for login
     "login_logo_height": "120px",               # You control the login size
 
-    "welcome_sign": "Welcome to PaperBill Admin",
-    "copyright": "PaperBill",
+    "welcome_sign": "Welcome to Baniya Bandhu Admin",
+    "copyright": "Baniya Bandhu",
     "search_model": ["auth.User", "customer.Customer"],
 
     "topmenu_links": [
@@ -171,7 +171,8 @@ JAZZMIN_SETTINGS = {
 
     "subscription": "fas fa-receipt",
     "subscription.Subscription": "fas fa-file-invoice-dollar",
-    "subscription.Plan": "fas fa-cubes",  # 🆕 icon for Plan
+    "subscription.Plan": "fas fa-cubes", 
+    "subscription.ExecutableFile": "fas fa-settings", 
 },
 
 
