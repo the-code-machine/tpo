@@ -143,7 +143,7 @@ JAZZMIN_SETTINGS = {
     "site_header": "Baniya Bandhu",
     "site_brand": "Baniya Bandhu",
     "site_logo": "images/logo.png",
-    "site_logo_classes": "img-circle elevation-3",
+"site_logo_classes": "img-fluid",
     "site_logo_height": "40px",
     "site_logo_width": "40px",
     "login_logo": "images/logo.png",            # Same or separate logo for login
@@ -175,7 +175,7 @@ JAZZMIN_SETTINGS = {
     "subscription.ExecutableFile": "fas fa-settings", 
 },
 
-
+"custom_css": "css/custom_admin.css",
     "show_sidebar": True,
     "navigation_expanded": True,
     "hide_apps": [],
