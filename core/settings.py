@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-ef&%b-wh!4a=9tdq0*v7i7@81(7#5+-+nc1#zj%q7amreiu^s^
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ['34.228.195.218', 'api.paperbill.in','127.0.0.1']
+ALLOWED_HOSTS = ['13.51.206.99', 'api.paperbill.in','127.0.0.1']
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
