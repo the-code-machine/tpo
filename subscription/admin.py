@@ -3,7 +3,7 @@ from .models import Plan, Subscription, ExecutableFile
 from django.utils.html import format_html
 @admin.register(ExecutableFile)
 class ExecutableFileAdmin(admin.ModelAdmin):
-    list_display = ['__str__', 'uploaded_at', 'file_link']
+    list_display = ['__str__', 'platform', 'uploaded_at', 'file_link']
 
     def file_link(self, obj):
         if obj.file:
@@ -12,10 +12,12 @@ class ExecutableFileAdmin(admin.ModelAdmin):
     file_link.short_description = 'File Link'
 
     def has_add_permission(self, request):
-        # Allow adding only if no ExecutableFile exists
-        if ExecutableFile.objects.count() >= 1:
+        # Allow adding if platform-specific file doesn't exist
+        count = ExecutableFile.objects.count()
+        if count >= 2:  # One for windows and one for mac
             return False
         return super().has_add_permission(request)
+
     
 @admin.register(Plan)
 class PlanAdmin(admin.ModelAdmin):

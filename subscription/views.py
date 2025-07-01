@@ -23,18 +23,22 @@ def download_exe(request):
     except ExecutableFile.DoesNotExist:
         raise Http404("Executable not found.")
     
+
 @api_view(['GET'])
 def get_latest_version(request):
-    latest_file = ExecutableFile.objects.order_by('-uploaded_at').first()
-    if not latest_file:
-        return Response({"detail": "No executable found."}, status=status.HTTP_404_NOT_FOUND)
+    windows_file = ExecutableFile.objects.filter(platform='windows').order_by('-uploaded_at').first()
+    mac_file = ExecutableFile.objects.filter(platform='mac').order_by('-uploaded_at').first()
 
-    file_name = latest_file.file.name.split('/')[-1]  # get just the filename
-    file_url = request.build_absolute_uri(f'/executables/{file_name}')
+    if not windows_file and not mac_file:
+        return Response({"detail": "No executables found."}, status=status.HTTP_404_NOT_FOUND)
+
+    def build_url(file):
+        return request.build_absolute_uri(file.file.url) if file else None
 
     return Response({
-        "version": latest_file.version,
-        "file_url": file_url,
+        "version": windows_file.version if windows_file else (mac_file.version if mac_file else None),
+        "windows_url": build_url(windows_file),
+        "mac_url": build_url(mac_file),
     })
     
 class SubscriptionViewSet(viewsets.ModelViewSet):

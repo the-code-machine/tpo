@@ -12,17 +12,23 @@ def exe_upload_path(instance, filename):
     return os.path.join("executables", filename)
 
 class ExecutableFile(models.Model):
+    PLATFORM_CHOICES = [
+        ('windows', 'Windows'),
+        ('mac', 'macOS'),
+    ]
+
     file = models.FileField(upload_to=exe_upload_path)
     version = models.CharField(max_length=50)
+    platform = models.CharField(max_length=10, choices=PLATFORM_CHOICES)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        # Prevent multiple entries
-        if not self.pk and ExecutableFile.objects.exists():
-            raise ValidationError("Only one executable file is allowed.")
+        # Ensure only one file per platform
+        if not self.pk and ExecutableFile.objects.filter(platform=self.platform).exists():
+            raise ValidationError(f"Executable for {self.platform} already exists.")
 
     def save(self, *args, **kwargs):
-        self.full_clean()  # This calls clean()
+        self.full_clean()
         try:
             old_instance = ExecutableFile.objects.get(pk=self.pk)
             if old_instance.file and old_instance.file != self.file:
@@ -32,7 +38,8 @@ class ExecutableFile(models.Model):
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"{self.version} - {self.file.name}"   
+        return f"{self.platform.upper()} v{self.version}"
+ 
     
 class Plan(models.Model):
     name = models.CharField(max_length=50)
