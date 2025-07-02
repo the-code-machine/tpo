@@ -41,7 +41,7 @@ def send_otp_view(request):
     send_mail(
         subject="Your OTP Code",
         message=f"Your OTP code is: {otp}",
-        from_email="your_gmail@gmail.com",
+        from_email="sarthakkhare821@gmail.com",
         recipient_list=[email],
         fail_silently=False,
     )
