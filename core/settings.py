@@ -29,6 +29,7 @@ ALLOWED_HOSTS = ['13.51.206.99', 'api.paperbill.in','127.0.0.1']
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "https://paperbill.in",
+    
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True

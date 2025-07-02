@@ -7,7 +7,10 @@ from rest_framework import status
 import requests
 from subscription.models import Subscription,Plan
 from datetime import date, timedelta
-
+from django.core.mail import send_mail
+from django.core.cache import cache
+import random
+import string
 from sync.models import Firm
 API_KEY = "863e3f5d-dc99-11ef-8b17-0200cd936042"  
 
@@ -16,23 +19,34 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
 
+
+
 @api_view(['POST'])
 def send_otp_view(request):
     phone = request.data.get("phone")
+    email = request.data.get("email")
     if not phone or not phone.isdigit() or len(phone) != 10:
         return Response({"detail": "Invalid phone number."}, status=400)
+    if not email:
+        return Response({"detail": "Email is required."}, status=400)
 
-    try:
-        url = f"https://2factor.in/API/V1/{API_KEY}/SMS/{phone}/AUTOGEN"
-        response = requests.get(url)
-        print("2Factor response:", response.status_code, response.text)  # 🐞 debug line
-        data = response.json()
+    # Generate a 6-digit OTP
+    otp = ''.join(random.choices(string.digits, k=6))
+    session_id = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
 
-        if data.get("Status") == "Success":
-            return Response({"session_id": data.get("Details")})
-        return Response({"detail": data.get("Details", "Failed to send OTP.")}, status=500)
-    except Exception as e:
-        return Response({"detail": f"Unexpected error: {str(e)}"}, status=500)
+    # Store OTP in cache for 10 minutes
+    cache.set(f"otp_{session_id}", {"otp": otp, "phone": phone, "email": email}, timeout=600)
+
+    # Send OTP to email
+    send_mail(
+        subject="Your OTP Code",
+        message=f"Your OTP code is: {otp}",
+        from_email="your_gmail@gmail.com",
+        recipient_list=[email],
+        fail_silently=False,
+    )
+
+    return Response({"session_id": session_id})
 
 @api_view(['POST'])
 def verify_otp_view(request):
@@ -44,17 +58,15 @@ def verify_otp_view(request):
     machine_id = request.data.get("machine_id")
     force_replace = request.data.get("force_replace", False)
 
-    if not session_id or not otp or not phone or not machine_id:
-        return Response({"detail": "Phone, OTP, Machine ID, and Session ID are required."}, status=400)
+    if not session_id or not otp or not phone or not machine_id or not email:
+        return Response({"detail": "Phone, OTP, Machine ID, Session ID, and Email are required."}, status=400)
 
-    # OTP verification
-    url = f"https://2factor.in/API/V1/{API_KEY}/SMS/VERIFY/{session_id}/{otp}"
-    response = requests.get(url)
-    data = response.json()
+    # Get OTP from cache
+    otp_data = cache.get(f"otp_{session_id}")
+    if not otp_data or otp_data["otp"] != otp or otp_data["phone"] != phone or otp_data["email"] != email:
+        return Response({"detail": "Invalid OTP or session."}, status=400)
 
-    if data.get("Status") != "Success":
-        return Response({"detail": "Invalid OTP"}, status=400)
-
+    # ...existing code for customer creation and device logic...
     customer, created = Customer.objects.get_or_create(phone=phone)
 
     if name:
@@ -66,32 +78,27 @@ def verify_otp_view(request):
     if created:
         try:
             plan = Plan.objects.get(name__iexact="Free Trial", price=0, duration_days=7)
-            # 🔐 Ensure no duplicate trial subscription
             existing_trial = Subscription.objects.filter(customer=customer, plan=plan).exists()
             if not existing_trial:
                 Subscription.objects.create(
-                customer=customer,
-                plan=plan,
-                start_date=date.today(),
-                end_date=date.today() + timedelta(days=plan.duration_days),
-                is_active=True
+                    customer=customer,
+                    plan=plan,
+                    start_date=date.today(),
+                    end_date=date.today() + timedelta(days=plan.duration_days),
+                    is_active=True
                 )
         except Plan.DoesNotExist:
             return Response({"detail": "Trial plan not configured"}, status=500)
 
-
     subscription = customer.subscriptions.filter(is_active=True).order_by('-end_date').first()
     allowed_devices = subscription.plan.max_devices if subscription and subscription.plan else 1
-    
-    # Ensure machine_ids is always a list
+
     if not isinstance(customer.machine_ids, list):
         customer.machine_ids = []
-        
-    # ✅ Machine ID logic
+
     if machine_id not in customer.machine_ids:
         if len(customer.machine_ids) >= allowed_devices:
             if force_replace:
-                # Replace the oldest machine_id with new one
                 customer.machine_ids.pop(0)
                 customer.machine_ids.append(machine_id)
             else:
@@ -105,6 +112,9 @@ def verify_otp_view(request):
 
     customer.save()
 
+    # Optionally, delete OTP after use
+    cache.delete(f"otp_{session_id}")
+
     return Response({
         "detail": "OTP Verified",
         "customer_id": customer.id,
@@ -114,7 +124,7 @@ def verify_otp_view(request):
         "new_user": created,
         "force_logout": False
     })
-
+# ...existing code...
 
 @api_view(['GET'])
 def get_user_info_view(request):
